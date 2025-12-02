@@ -1,8 +1,11 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Text, View } from "react-native";
+import { ActivityIndicator, Image, Text, View, Button } from "react-native";
+import { useRouter } from "expo-router";
 
 export default function Index() {
+  const router = useRouter();
+
   const [food, setFood] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -10,7 +13,9 @@ export default function Index() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("https://food-logger-backend-one.vercel.app/api/food");
+        const response = await axios.get(
+          "https://food-logger-backend-one.vercel.app/api/food"
+        );
         setFood(response.data);
       } catch (err: any) {
         console.error("Error fetching food:", err.message);
@@ -19,7 +24,8 @@ export default function Index() {
         setLoading(false);
       }
     };
-getfood();
+
+    getfood();
     fetchData();
   }, []);
 
@@ -30,8 +36,12 @@ getfood();
         justifyContent: "center",
         alignItems: "center",
         padding: 20,
+        gap: 20,
       }}
     >
+      {/* ⬇️ Navigation button */}
+      <Button title="Go to scanner" onPress={() => router.push("/scanner")} />
+
       {loading ? (
         <ActivityIndicator size="large" color="#0000ff" />
       ) : error ? (
@@ -61,10 +71,10 @@ getfood();
   );
 }
 
-
 async function getfood() {
-    const response = await fetch("https://food-logger-backend-one.vercel.app/api/food");
-    const data = await response.json();
-    console.log(data);
-  
+  const response = await fetch(
+    "https://food-logger-backend-one.vercel.app/api/food"
+  );
+  const data = await response.json();
+  console.log(data);
 }

@@ -4,7 +4,15 @@ import React, { useEffect, useState } from "react";
 import * as Haptics from "expo-haptics";
 import axios from "axios";
 
-interface Product {
+
+
+interface FSProduct {
+    brands: string;
+    ingredients_text: string;
+    nutriments: Nutriments;
+}
+
+interface OFFProduct {
     brands: string;
     ingredients_text: string;
     nutriments: Nutriments;
@@ -18,7 +26,26 @@ interface Nutriments {
 
 interface ProductData {
     code: string;
-    product: Product;
+    product: FSProduct | OFFProduct;
+    source: "FoodSecrect" | "OFF"
+}
+
+
+
+async function searchBarcode(barcode: string, accessToken: string) {
+  const resp = await axios.get(
+    `https://platform.fatsecret.com/rest/food/barcode/find-by-id/v2?barcode=${barcode}&format=json`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  if (resp.data.error && resp.data.error.code === 211){
+    return fetchProduct(barcode)
+  }
+  return resp
+    
 }
 
 async function getAccessToken(clientId: string, clientSecret: string) {
@@ -113,7 +140,7 @@ export default function ScanScreen() {
                 "97e8094a37b1411b96f20e05b5e2f863"
             );
 
-            const productData = await fetchProduct(result.data);
+            const productData = await searchBarcode(result.data, token);
             setProduct(productData);
         } catch (err) {
             console.error("Error fetching product:", err);

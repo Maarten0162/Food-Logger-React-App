@@ -25,8 +25,8 @@ export default function Index() {
       }
     };
 
-    getfood();
-    fetchData();
+    //getfood();
+    //fetchData();
   }, []);
 
   return (

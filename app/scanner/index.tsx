@@ -5,148 +5,168 @@ import * as Haptics from "expo-haptics";
 import axios from "axios";
 
 interface Product {
-  brands: string;
-  categories: string;
-  ingredients_text: string;
-  ingredients_n: number;
-  carbohydrates: number;
+    brands: string;
+    ingredients_text: string;
+    nutriments: Nutriments;
+}
+
+interface Nutriments {
+    carbohydrates_100g?: number;
+    proteins_100g?: number;
+    fat_100g?: number;
 }
 
 interface ProductData {
-  code: string;
-  product: Product;
+    code: string;
+    product: Product;
 }
 
 async function getAccessToken(clientId: string, clientSecret: string) {
-  const token = btoa(`${clientId}:${clientSecret}`);    
+    const token = btoa(`${clientId}:${clientSecret}`);
 
-  const resp = await axios.post(
-    "https://oauth.fatsecret.com/connect/token",
-    "grant_type=client_credentials",
-    {
-      headers: {
-        Authorization: `Basic ${token}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-    }
-  );
+    const resp = await axios.post(
+        "https://oauth.fatsecret.com/connect/token",
+        "grant_type=client_credentials",
+        {
+            headers: {
+                Authorization: `Basic ${token}`,
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+        }
+    );
 
-  return resp.data.access_token;
+    return resp.data.access_token;
 }
 
-    const fetchProduct = async (barcode: string) => {
+const fetchProduct = async (barcode: string): Promise<ProductData | null> => {
     try {
-        const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-        const data: ProductData = await response.json(); // TypeScript now knows the structure
+        const response = await fetch(
+            `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`
+        );
+        const data: ProductData = await response.json();
 
-        // Access variables
+        // Make sure nutriments exists
+        if (!data.product.nutriments) {
+            data.product.nutriments = {};
+        }
+
+        // Access variables safely
         const productCode = data.code;
         const brand = data.product.brands;
-        const categories = data.product.categories;
-        const ingredientsText = data.product.ingredients_text;
-        const numIngredients = data.product.ingredients_n;
-        const carbs = data.product.carbohydrates;
+        const carbs = data.product.nutriments?.carbohydrates_100g;
+        const fat = data.product.nutriments?.fat_100g;
+        const protein = data.product.nutriments?.proteins_100g;
 
-        console.log(productCode, carbs, brand, categories, ingredientsText, numIngredients);
+        console.log(productCode, brand, carbs, fat, protein );
+
+        return data; // ✅ return the product data
     } catch (error) {
         console.error("Error fetching product:", error);
+        return null;
     }
-    };
+};
+
 
 
 export default function ScanScreen() {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [scanned, setScanned] = useState(false);
-  const [data, setData] = useState("");
-  const [product, setProduct] = useState<any | null>(null);
+    const [permission, requestPermission] = useCameraPermissions();
+    const [scanned, setScanned] = useState(false);
+    const [data, setData] = useState("");
+    const [product, setProduct] = useState<any | null>(null);
 
-  // auto-request on mount
-  useEffect(() => {
-    if (permission && !permission.granted) {
-      requestPermission();
+    // auto-request on mount
+    useEffect(() => {
+        if (permission && !permission.granted) {
+            requestPermission();
+        }
+    }, [permission]);
+
+    if (!permission) {
+        return <Text>Checking camera permission...</Text>;
     }
-  }, [permission]);
 
-  if (!permission) {
-    return <Text>Checking camera permission...</Text>;
-  }
+    if (!permission.granted) {
+        return (
+            <View style={styles.center}>
+                <Text style={{ marginBottom: 10 }}>
+                    Camera permission is required to scan.
+                </Text>
+                <TouchableOpacity onPress={requestPermission}>
+                    <Text style={{ color: "blue" }}>Tap to grant permission</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
-  if (!permission.granted) {
+    const handleScan = async (result: BarcodeScanningResult) => {
+        if (scanned) return;
+        setScanned(true);
+
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        Vibration.vibrate([200, 100, 200]);
+
+        setData(result.data);
+
+        try {
+            const token = await getAccessToken(
+                "d0763303a0514f0a8a13ad63a4c4a494",
+                "97e8094a37b1411b96f20e05b5e2f863"
+            );
+
+            const productData = await fetchProduct(result.data);
+            setProduct(productData);
+        } catch (err) {
+            console.error("Error fetching product:", err);
+            setProduct(null);
+        }
+    };
+
     return (
-      <View style={styles.center}>
-        <Text style={{ marginBottom: 10 }}>
-          Camera permission is required to scan.
-        </Text>
-        <TouchableOpacity onPress={requestPermission}>
-          <Text style={{ color: "blue" }}>Tap to grant permission</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+        <View style={{ flex: 1 }}>
+            <CameraView
+                style={StyleSheet.absoluteFill}
+                onBarcodeScanned={handleScan}
+                barcodeScannerSettings={{
+                    barcodeTypes: ["ean13", "ean8", "qr", "upc_a", "upc_e"],
+                }}
+            />
 
-  const handleScan = async (result: BarcodeScanningResult) => {
-    if (scanned) return;
-    setScanned(true);
+            {scanned && (
+                <View style={styles.resultBox}>
+                    <Text>Scanned: {data}</Text>
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Vibration.vibrate([200, 100, 200]);
+                    {product === null ? (
+                        <Text>Loading product...</Text> // <-- show while fetching
+                    ) : product ? (
+                        <Text>Product: {JSON.stringify(product, null, 2)}</Text>
+                    ) : (
+                        <Text>Product not found</Text> // <-- only if fetch returned null
+                    )}
 
-    setData(result.data);
-
-    try {
-      const token = await getAccessToken(
-        "d0763303a0514f0a8a13ad63a4c4a494",
-        "97e8094a37b1411b96f20e05b5e2f863"
-      );
-
-      const productData = await fetchProduct(result.data);
-      console.log("Product data:", productData);
-      setProduct(productData);
-    } catch (err) {
-      console.error("Error fetching product:", err);
-      setProduct(null);
-    }
-  };
-
-  return (
-    <View style={{ flex: 1 }}>
-      <CameraView
-        style={StyleSheet.absoluteFill}
-        onBarcodeScanned={handleScan}
-        barcodeScannerSettings={{
-          barcodeTypes: ["ean13", "ean8", "qr", "upc_a", "upc_e"],
-        }}
-      />
-
-      {scanned && (
-        <View style={styles.resultBox}>
-          <Text>Scanned: {data}</Text>
-          {product ? (
-            <Text>Product: {JSON.stringify(product, null, 2)}</Text>
-          ) : (
-            <Text>Product not found</Text>
-          )}
-          <TouchableOpacity onPress={() => setScanned(false)}>
-            <Text style={{ color: "blue" }}>Scan again</Text>
-          </TouchableOpacity>
+                    <TouchableOpacity onPress={() => {
+                        setScanned(false);
+                        setProduct(null); // reset for next scan
+                    }}>
+                        <Text style={{ color: "blue" }}>Scan again</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
-      )}
-    </View>
-  );
+    );
 }
 
 const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  resultBox: {
-    position: "absolute",
-    bottom: 40,
-    alignSelf: "center",
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-  },
+    center: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    resultBox: {
+        position: "absolute",
+        bottom: 40,
+        alignSelf: "center",
+        backgroundColor: "#fff",
+        padding: 15,
+        borderRadius: 10,
+    },
 });

@@ -33,18 +33,18 @@ interface ProductData {
 
 
 async function searchBarcode(barcode: string, accessToken: string) {
-  const resp = await axios.get(
-    `https://platform.fatsecret.com/rest/food/barcode/find-by-id/v2?barcode=${barcode}&format=json`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
-  if (resp.data.error && resp.data.error.code === 211){
+//   const resp = await axios.get(
+//     `https://platform.fatsecret.com/rest/food/barcode/find-by-id/v2?barcode=${barcode}&format=json`,
+//     {
+//       headers: {
+//         Authorization: `Bearer ${accessToken}`,
+//       },
+//     }
+//   );
+//   if (resp.data.error && resp.data.error.code === 211){
     return fetchProduct(barcode)
-  }
-  return resp
+//   }
+//   return resp
     
 }
 

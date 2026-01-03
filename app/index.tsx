@@ -1,7 +1,7 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Text, View, Button } from "react-native";
 import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Button, Image, Text, View } from "react-native";
 
 export default function Index() {
   const router = useRouter();
